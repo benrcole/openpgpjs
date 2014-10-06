@@ -1,6 +1,6 @@
 function Stream() {
   this.events = {};
-  this.size = 0;
+  this.length = 0;
   this.position = 0;
 }
 
@@ -44,7 +44,7 @@ FileStream.prototype = new Stream;
 
 FileStream.prototype._initFile = function(file) {
     this.file = file;
-    this.size = file.size;
+    this.length = file.length;
 }
 
 FileStream.prototype._readFile = function(nbytes) {
@@ -54,9 +54,9 @@ FileStream.prototype._readFile = function(nbytes) {
     that = this,
     blob;
 
-  if (start >= this.size) return this.emit("data", null);
-  if (end > this.size) {
-    end = this.size;
+  if (start >= this.length) return this.emit("data", null);
+  if (end > this.length) {
+    end = this.length;
     nbytes = end - start;
   }
 
@@ -68,5 +68,33 @@ FileStream.prototype._readFile = function(nbytes) {
   reader.readAsBinaryString(blob);
 }
 
+function PrefixStreamer(prefix, otherstream) {
+  Stream.call(this);
+  this.prefix = prefix.split('');
+  this.otherstream = otherstream;
+  this.length = this.otherstream.length + this.prefix.length;
+}
+
+PrefixStreamer.prototype = new Stream;
+PrefixStreamer.prototype.read = function(nbytes) {
+  var that = this;
+  prefix_bytes = this.prefix.splice(0, nbytes).join('');
+  nbytes = nbytes - prefix_bytes.length;
+  if (nbytes >= 0) {
+    this.otherstream.once("data", function(data){
+      console.log(data);
+      if (data != null) {
+        that.emit("data", prefix_bytes + data);
+      } else {
+        that.emit("data", null);
+      }
+    });
+    this.otherstream.read(nbytes);
+  } else {
+    this.emit("data", prefix_bytes);
+  }
+}
+
+exports.PrefixStreamer = PrefixStreamer;
 exports.FileStream = FileStream;
 exports.Stream = Stream;

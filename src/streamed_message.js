@@ -32,6 +32,7 @@ var packet = require('./packet'),
   crypto = require('./crypto'),
   keyModule = require('./key.js'),
   message = require('./message.js'),
+  stream = require('./stream.js'),
   util = require('./util.js');
 
 config.debug = true;
@@ -44,12 +45,12 @@ config.debug = true;
  * See {@link http://tools.ietf.org/html/rfc4880#section-11.3}
  */
 
-function StreamedMessage(stream, keys) {
+function StreamedMessage(file, keys) {
   if (!(this instanceof StreamedMessage)) {
-    return new StreamedMessage(stream, keys);
+    return new StreamedMessage(file, keys);
   }
   this.buffer = new Array();
-  this.size = 0;
+  this.length = 0;
   this.position = 0;
   this.eof = false;
   this.stream = stream;
@@ -64,11 +65,20 @@ function StreamedMessage(stream, keys) {
   this.cipherfn = new crypto.cipher[this.algo](this.sessionKey);
   this.feedbackRegister = new Uint8Array(this.cipherfn.blockSize);
   this.feedbackRegisterEncrypted = new Uint8Array(this.cipherfn.blockSize);
+  
+  var prefix = '';
+  prefix += String.fromCharCode(enums.write(enums.literal, 'utf8'));
+  prefix += String.fromCharCode(stream.length);
+  prefix += 'msg.txt';
+  prefix += util.writeDate(new Date());
+  prefix = packet.packet.writeHeader(enums.packet.literal, prefix.length + file.length) + prefix;
 
-  this.stream = stream;
+  this.file = file;
+  this.stream = new stream.PrefixStreamer(prefix, file);
+  //this.stream = new stream.PrefixStreamer(, pstream);
   this.generateHeader();
-  this.size = this.buffer.length;
-  this.size += stream.size + this.cipherfn.blockSize + 2;
+  this.length= this.buffer.length;
+  this.length += this.stream.length + this.cipherfn.blockSize + 2;
 }
 
 StreamedMessage.prototype.generateHeader = function() {
@@ -89,9 +99,12 @@ StreamedMessage.prototype.generateHeader = function() {
       throw new Error('Could not find valid key packet for encryption in key ' + key.primaryKey.getKeyId().toHex());
     }
   });
+  var packet_len = this.stream.length + this.cipherfn.blockSize + 2,
+    first_packet_header = packet.packet.writeHeader(9, packet_len)
+                      .split('');
+  console.log("packet len " + packet_len);
   Array.prototype.push.apply(this.buffer, packetList.write().split(''));
-  console.log("MY SIZE " + (this.stream.size + this.cipherfn.blockSize + 2));
-  Array.prototype.push.apply(this.buffer, packet.packet.writeHeader(9, this.stream.size + this.cipherfn.blockSize + 2).split(''));
+  Array.prototype.push.apply(this.buffer, first_packet_header);
 }
 
 /**
@@ -103,7 +116,7 @@ StreamedMessage.prototype.read = function(nbytes, cb) {
   var that = this;
   if (typeof nbytes == 'function') {
     cb = nbytes;
-    nbytes = (this.size - this.position) + this.buffer.length;
+    nbytes = (this.length - this.position) + this.buffer.length;
   }
   if (this.eof) {
     nbytes = this.buffer.length; 
