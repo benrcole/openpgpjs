@@ -56,6 +56,7 @@ function StreamedMessage(file, keys) {
   this.stream = stream;
   this.prefixGenerated = false;
   this.keys = keys;
+  this.previous_chunk = null;
 
   this.symAlgo = keyModule.getPreferredSymAlgo(keys);
   this.algo = enums.read(enums.symmetric, this.symAlgo);
@@ -69,13 +70,11 @@ function StreamedMessage(file, keys) {
   var prefix = '';
   prefix += String.fromCharCode(enums.write(enums.literal, 'utf8'));
   prefix += String.fromCharCode(stream.length);
-  prefix += 'msg.txt';
   prefix += util.writeDate(new Date());
   prefix = packet.packet.writeHeader(enums.packet.literal, prefix.length + file.length) + prefix;
 
   this.file = file;
   this.stream = new stream.PrefixStreamer(prefix, file);
-  //this.stream = new stream.PrefixStreamer(, pstream);
   this.generateHeader();
   this.length= this.buffer.length;
   this.length += this.stream.length + this.cipherfn.blockSize + 2;
@@ -102,7 +101,6 @@ StreamedMessage.prototype.generateHeader = function() {
   var packet_len = this.stream.length + this.cipherfn.blockSize + 2,
     first_packet_header = packet.packet.writeHeader(9, packet_len)
                       .split('');
-  console.log("packet len " + packet_len);
   Array.prototype.push.apply(this.buffer, packetList.write().split(''));
   Array.prototype.push.apply(this.buffer, first_packet_header);
 }
@@ -133,8 +131,10 @@ StreamedMessage.prototype.read = function(nbytes, cb) {
       that.encrypt_block(data);
       that.read(nbytes, cb);
     });
-    var bytes_to_read = nbytes - this.buffer.length;
-    bytes_to_read = bytes_to_read + (bytes_to_read % this.cipherfn.blockSize)
+    var bytes_to_read = nbytes - this.buffer.length,
+      padding = ((-bytes_to_read % this.cipherfn.blockSize) +
+                 this.cipherfn.blockSize);
+    bytes_to_read = bytes_to_read + padding;
     this.stream.read(bytes_to_read);
   }
 };
@@ -194,7 +194,7 @@ StreamedMessage.prototype._generatePrefix = function(chunk) {
   for (i = 0; i < block_size; i++) {
     ciphertext[block_size + 2 + i] = this.feedbackRegisterEncrypted[i + offset] ^ chunk.charCodeAt(i);
   }
-  this.feedbackRegister.set(ciphertext.subarray(block_size + 2, 2*block_size + 2));
+  this.previous_chunk = ciphertext.subarray(block_size + 2 - offset, 2*block_size + 2 - offset);
   ciphertext = ciphertext.subarray(0, chunk.length + 2 + block_size);
   return util.Uint8Array2str(ciphertext);
 }
@@ -225,18 +225,18 @@ StreamedMessage.prototype.encrypt_block = function(chunk) {
     for (n = 0; n < chunk.length; n += block_size) {
       // 10. FR is loaded with C[BS+3] to C[BS + (BS+2)] (which is C11-C18 for
       // an 8-octet block).
-      begin = n;
+      this.feedbackRegister.set(this.previous_chunk);
 
       // 11. FR is encrypted to produce FRE.
       this.feedbackRegisterEncrypted = this.cipherfn.encrypt(this.feedbackRegister);
 
       // 12. FRE is xored with the next BS octets of plaintext, to produce
-      // the next BS octets of ciphertext.  These are loaded into FR, and
+      // the next BS octets of ciphertext. These are loaded into FR, and
       // the process is repeated until the plaintext is used up.
       for (i = 0; i < block_size; i++) {
-        ciphertext[begin + i] = this.feedbackRegisterEncrypted[i] ^ chunk.charCodeAt(n + i);
+        ciphertext[n + i] = this.feedbackRegisterEncrypted[i] ^ chunk.charCodeAt(n + i);
       }
-      this.feedbackRegister.set(ciphertext.subarray(begin, begin + block_size));
+      this.previous_chunk = ciphertext.subarray(n, n + block_size);
     }
     ciphertext = ciphertext.subarray(0, chunk.length);
     data = util.Uint8Array2str(ciphertext);

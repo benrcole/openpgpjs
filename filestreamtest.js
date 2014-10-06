@@ -93,7 +93,7 @@ fileStreamMock.read = function(nbytes) {
   }
   this.position += nbytes;
   blob = pt_encoded.slice(start, end);
-  this.emit("data", blob.toString());
+  this.emit("data", blob);
 }
 
 var pubKeys = openpgp.key.readArmored(pub_key);

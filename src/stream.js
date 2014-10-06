@@ -80,9 +80,8 @@ PrefixStreamer.prototype.read = function(nbytes) {
   var that = this;
   prefix_bytes = this.prefix.splice(0, nbytes).join('');
   nbytes = nbytes - prefix_bytes.length;
-  if (nbytes >= 0) {
+  if (nbytes > 0) {
     this.otherstream.once("data", function(data){
-      console.log(data);
       if (data != null) {
         that.emit("data", prefix_bytes + data);
       } else {
