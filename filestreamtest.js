@@ -65,23 +65,14 @@ var priv_key =
     '-----END PGP PRIVATE KEY BLOCK-----'].join('\n');
 
 
-//var plaintext = 'short message\nnext line\n한국어/조선말';
-//var plaintext = 'short message\nnext line\n한국어/조선말';
-var plaintext = 'bbbbbbbbbbbbb';
+// var plaintext = 'short message\nnext line\n한국어/조선말';
+var plaintext = 'short message\nnext line\n한국어/조선말';
+// var plaintext = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 var pt_encoded = unescape(encodeURIComponent(plaintext));
 
 var fileStreamMock = new openpgp.stream.Stream();
 fileStreamMock.length = pt_encoded.length;
-fileStreamMock.getHeader = function(nbytes) {
-  var result = '';
-  var filename = "antani.txt";
-  result += String.fromCharCode(openpgp.enums.write(openpgp.enums.literal, 'utf-8'));
-  result += String.fromCharCode(filename.length);
-  result += filename;
-  result += openpgp.util.writeDate(new Date());
-  return result;
-}
-fileStreamMock.read = function(nbytes) {
+fileStreamMock._read = function(nbytes) {
   var start = this.position,
     end = this.position + nbytes,
     that = this, blob;
@@ -107,7 +98,7 @@ var encrypted = openpgp.encryptMessage([pubKey], plaintext);
 
 message = openpgp.message.readArmored(encrypted);
 
-var sm = openpgp.streamed_message.StreamedMessage(fileStreamMock, [pubKey]);
+var sm = openpgp.stream.MessageStream(fileStreamMock, [pubKey]);
 var encryptedpayload = "";
 
 sm.read(140, function(data){
@@ -140,6 +131,7 @@ sm.read(140, function(data){
       console.log(message.packets[1].encrypted.length)
       console.log("00000");
       console.log(openpgp.decryptMessage(privKey, ecm));
+      console.log(openpgp.decryptMessage(privKey, ecm).length);
       //var ecm = openpgp.packet.fromBinary(encryptedpayload);
       //console.log(ecm);
       //var dec = openpgp.decryptMessage(privKey, ecm);

@@ -22,20 +22,18 @@
  * @requires enums
  * @requires packet
  * @requires message
- * @module streamed_message
+ * @module stream/message
  */
 
-var packet = require('./packet'),
-  enums = require('./enums.js'),
-  armor = require('./encoding/armor.js'),
-  config = require('./config'),
-  crypto = require('./crypto'),
-  keyModule = require('./key.js'),
-  message = require('./message.js'),
-  stream = require('./stream.js'),
-  util = require('./util.js');
-
-config.debug = true;
+var packet = require('../packet'),
+  enums = require('../enums.js'),
+  armor = require('../encoding/armor.js'),
+  config = require('../config'),
+  crypto = require('../crypto'),
+  keyModule = require('../key.js'),
+  message = require('../message.js'),
+  util = require('../util.js'),
+  stream = require('./stream.js');
 
 /**
  * @class
@@ -45,15 +43,14 @@ config.debug = true;
  * See {@link http://tools.ietf.org/html/rfc4880#section-11.3}
  */
 
-function StreamedMessage(file, keys) {
-  if (!(this instanceof StreamedMessage)) {
-    return new StreamedMessage(file, keys);
+function MessageStream(file, keys) {
+  if (!(this instanceof MessageStream)) {
+    return new MessageStream(file, keys);
   }
   this.buffer = new Array();
   this.length = 0;
   this.position = 0;
   this.eof = false;
-  this.stream = stream;
   this.prefixGenerated = false;
   this.keys = keys;
   this.previous_chunk = null;
@@ -69,18 +66,18 @@ function StreamedMessage(file, keys) {
   
   var prefix = '';
   prefix += String.fromCharCode(enums.write(enums.literal, 'utf8'));
-  prefix += String.fromCharCode(stream.length);
+  prefix += String.fromCharCode(file.length);
   prefix += util.writeDate(new Date());
   prefix = packet.packet.writeHeader(enums.packet.literal, prefix.length + file.length) + prefix;
-
-  this.file = file;
-  this.stream = new stream.PrefixStreamer(prefix, file);
+  
+  this.stream = new stream.StringStream(prefix);
+  this.stream = this.stream.concat(file);
   this.generateHeader();
-  this.length= this.buffer.length;
+  this.length = this.buffer.length;
   this.length += this.stream.length + this.cipherfn.blockSize + 2;
 }
 
-StreamedMessage.prototype.generateHeader = function() {
+MessageStream.prototype.generateHeader = function() {
   var that = this,
     packetList = new packet.List(),
     data = "";
@@ -110,7 +107,7 @@ StreamedMessage.prototype.generateHeader = function() {
  * @param  {Int} nbytes the number of bytes to read
  * @return {Array<module:packet~List>} the encrypted data
  */
-StreamedMessage.prototype.read = function(nbytes, cb) {
+MessageStream.prototype.read = function(nbytes, cb) {
   var that = this;
   if (typeof nbytes == 'function') {
     cb = nbytes;
@@ -139,7 +136,7 @@ StreamedMessage.prototype.read = function(nbytes, cb) {
   }
 };
 
-StreamedMessage.prototype._generatePrefix = function(chunk) {
+MessageStream.prototype._generatePrefix = function(chunk) {
   var prefixrandom = crypto.getPrefixRandom(this.algo);
   var resync = true;
   var key = this.sessionKey;
@@ -207,14 +204,13 @@ StreamedMessage.prototype._generatePrefix = function(chunk) {
  * @param {Array<module:message~Message}   chunk the message chunk to encrypt
  * @return {Array<module:message~Message>} new message with encrypted content
  */
-StreamedMessage.prototype.encrypt_block = function(chunk) {
+MessageStream.prototype.encrypt_block = function(chunk) {
   var data = "";
   
-  if ((chunk.length % this.cipherfn.blockSize) === 0 && this.eof != true) {
-    throw new Error("encrypt_block must be called with a chunk multiple of the " +
-                    "block size (" + this.cipherfn.blockSize + ")") ;
-  }
-  
+  // if ((chunk.length % this.cipherfn.blockSize) !== 0 && this.eof != true) {
+  //   throw new Error("encrypt_block must be called with a chunk multiple of the " +
+  //                   "block size (" + this.cipherfn.blockSize + ")") ;
+  // }
   if (!this.prefixGenerated) {
     data = this._generatePrefix(chunk);
     this.prefixGenerated = true;
@@ -244,4 +240,4 @@ StreamedMessage.prototype.encrypt_block = function(chunk) {
   Array.prototype.push.apply(this.buffer || [], data.split(''));
 };
 
-exports.StreamedMessage = StreamedMessage;
+exports.MessageStream = MessageStream;

@@ -305,5 +305,28 @@ module.exports = {
         return "SHA224";
     }
     return "unknown";
+  },
+
+  /**
+   * Return a shallow copy of the object.
+   * @param {Object} obj the object to copy.
+   * @return {Object} a copy of the object given as input.
+   */
+  clone: function(obj) {
+    var copy = {}, prop;
+    for (prop in obj) {
+      copy[prop] = obj[prop];
+    }
+    return copy; 
   }
 };
+
+/**
+ * Register functions isFunction, isString, isBoolean.
+ * @return {Boolean} If the object is of the specified type.
+ */
+['Function', 'String', 'Boolean'].forEach(function(name){
+  module.exports['is' + name] = function(obj) {
+    return Object.prototype.toString.call(obj) === '[object ' + name + ']';
+  }
+});
