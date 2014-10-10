@@ -115,14 +115,10 @@ CipherFeedback.prototype.encryptBlock = function(chunk) {
   } else {
     ciphertext = this._encryptBlock(chunk);
   }
-  var buffer = new Buffer(ciphertext.length);
+  var buffer = new Buffer(ciphertext.length, 'binary');
   for (var i = 0; i < ciphertext.length; i++) {
     buffer[i] = ciphertext[i];
   }
-  util.pprint(buffer.toString('utf-8'));
-  util.pprint(buffer);
-  util.pprint(ciphertext);
-  //return util.Uint8Array2str(ciphertext);
   return buffer;
 };
 
@@ -131,10 +127,6 @@ CipherFeedback.prototype._transform = function(chunk, encoding, cb) {
   // console.log("I am about to encrypt "+chunk);
   if (availableIn + this._offset + 1 < this.blockSize) {
     chunk.copy(this._buffer, this._offset);
-    // this._buffer.write(chunk, this._offset);
-    //console.log("Writing into buffer");
-    //console.log(this._buffer);
-    //console.log(chunk);
     this._offset += availableIn;
   } else {
     var block = this._buffer.slice(0, this._offset);
@@ -147,19 +139,13 @@ CipherFeedback.prototype._transform = function(chunk, encoding, cb) {
     while (availableIn > needed && needed > 0) {
       block = Buffer.concat([block, 
                             chunk.slice(chunkOffset, chunkOffset + needed)]);
-      //console.log("Encrypting "+block);
-      //console.log(block.length);
       chunkOffset += needed;
-      var encrypted = this.encryptBlock(block);
-      //util.pprint(encrypted);
-      //console.log(encrypted.length);
-      this.push(encrypted);
+      this.push(this.encryptBlock(block));
       availableIn -= needed;
       needed = this.blockSize;
-      block = new Buffer([]);
+      block = new Buffer([], 'binary');
     }
     this._offset = availableIn;
-    //this._buffer.write(chunk.slice(chunkOffset));
     chunk.slice(chunkOffset).copy(this._buffer);
   }
   this.emit('encrypted', chunk);
@@ -168,9 +154,7 @@ CipherFeedback.prototype._transform = function(chunk, encoding, cb) {
 
 CipherFeedback.prototype._flush = function(cb) {
   var block = this._buffer.slice(0, this._offset);
-  console.log("Flushing..");
-  var encrypted = this.encryptBlock(block);
-  this.push(encrypted);
+  this.push(this.encryptBlock(block));
   this.emit('flushed', null);
   cb();
 }

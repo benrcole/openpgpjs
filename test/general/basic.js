@@ -286,6 +286,44 @@ describe('Basic', function() {
       done();
     });
 
+    it('Message encrypted in chunks should match message encrypted not in chunks', function (done) {
+      var pubKeys = openpgp.key.readArmored(pub_key);
+
+      expect(pubKeys).to.exist;
+      expect(pubKeys.err).to.not.exist;
+      expect(pubKeys.keys).to.have.length(1);
+
+      var pubKey = pubKeys.keys[0];
+
+      expect(pubKey).to.exist;
+
+      var encrypted = openpgp.encryptMessage([pubKey], plaintext);
+
+      expect(encrypted).to.exist;
+
+      message = openpgp.message.readArmored(encrypted);
+
+      var sm = openpgp.streamed_message.StreamedMessage([pubKey]),
+        chunks = plaintext.split("\n"),
+        encryptedpackets = new openpgp.packet.List(),
+        packet1, packet2, packet3;
+
+      packet1 = sm.encrypt(new openpgp.message.Message(chunks[0]+"\n"));
+      packet2 = sm.encrypt(new openpgp.message.Message(chunks[1]+"\n"));
+      packet3 = sm.encrypt(new openpgp.message.Message(chunks[2]));
+      encryptedpackets.concat(packet1);
+      encryptedpackets.concat(packet2);
+      encryptedpackets.concat(packet3);
+      
+      expect(new openpgp.message.Message(encryptedpackets)).to.equal(message);
+
+      // chunked_message.
+      // decrypted = openpgp.decryptMessage(privKey, message);
+      // expect(decrypted).to.exist;
+      // expect(decrypted).to.equal(plaintext);
+      done();
+    });
+
     it('Decrypt message 2x', function() {
       decrypted = openpgp.decryptMessage(privKey, message);
       var decrypted2 = openpgp.decryptMessage(privKey, message);

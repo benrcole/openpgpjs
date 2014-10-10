@@ -119,9 +119,7 @@ describe("CFB Stream", function() {
     cs.on('end', function(d) {
       var decrypted = crypto.cfb.decrypt(opts['algo'], opts['key'],
                                          util.bin2str(encrypted_data), true); 
-      util.pprint(encrypted_data);
-      decrypted = decodeURIComponent(escape(decrypted));
-      expect(decrypted).equal(plaintext_a);
+      expect(util.decode_utf8(decrypted)).equal(plaintext_a);
       expect(encrypted_data.length).equal(cs.blockSize + (new Buffer(plaintext_a)).length + 2);
       done();
     });
@@ -130,6 +128,32 @@ describe("CFB Stream", function() {
 
   });
 
+  it("should work on byte buffers", function(done) {
+    var opts = {};
+    opts['algo'] = enums.read(enums.symmetric, enums.symmetric.aes256);
+    opts['key'] = crypto.generateSessionKey(opts['algo']);
+    opts['cipherfn'] = crypto.cipher[opts['algo']];
+    opts['prefixrandom'] = crypto.getPrefixRandom(opts['algo']);
+    
+    var buffer_a = new Buffer([0x81, 0x02, 0xcc, 0x86, 0x92, 0xA9]);
+    var encrypted_data = new Buffer([]);
+    var cs = new cryptoStream.CipherFeedback(opts);
+    
+    cs.on('data', function(d) {
+      encrypted_data = Buffer.concat([encrypted_data, d]);
+    });
+
+    cs.on('end', function(d) {
+      var decrypted = crypto.cfb.decrypt(opts['algo'], opts['key'],
+                                         util.bin2str(encrypted_data), true); 
+      expect(util.decode_utf8(decrypted)).equal(util.bin2str(buffer_a));
+      expect(encrypted_data.length).equal(cs.blockSize + (buffer_a.length + 2));
+      done();
+    });
+    cs.write(buffer_a);
+    cs.end();
+
+  });
 
 
 });

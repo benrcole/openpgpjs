@@ -108,15 +108,12 @@ ConcatStream.prototype._nextStream = function() {
 
 ConcatStream.prototype.read = function(needed_bytes) {
   var that = this;
-  console.log("Read called with "+needed_bytes);
   var getbytes = function(d, nbytes) {
     console.log("NBYTES "+nbytes);
     if (d === null) {
       // This means I have finished reading the current chunk.
       if (nbytes === 0) {
         // If the needed bytes are zero then we have done.
-        console.log("If the needed bytes are zero then we have done.");
-        console.log(that.buffer);
         var d = that.buffer;
         that.buffer = '';
         that.emit("data", d);

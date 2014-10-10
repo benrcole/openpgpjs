@@ -10,8 +10,10 @@ var util = require('../util.js'),
   message = require('../message.js');
 
 config.debug = true;
-function MessageStream(file_length, keys, opts) {
+function MessageStream(keys, file_length, filename, opts) {
   var self = this;
+  filename = filename || 'msg.txt';
+  filename = util.encode_utf8(filename);
   opts = opts || {};
   packet_stream.HeaderPacketStream.call(this, opts);
 
@@ -25,30 +27,23 @@ function MessageStream(file_length, keys, opts) {
   this.keys = keys;
 
   this._prefixWritten = false;
-  this.prefix = '';
-  this.prefix += String.fromCharCode(enums.write(enums.literal, 'utf8'));
-  this.prefix += String.fromCharCode(this.fileLength);
-  //this.prefix += 'txt';
-  this.prefix += util.writeDate(new Date(1002300030000));
-  this.prefix = packet.packet.writeHeader(enums.packet.literal, 
-                                          unescape(encodeURIComponent(this.prefix)).length + this.fileLength) + this.prefix;
-  
-  
-  console.log("FL");
-  console.log(this.fileLength);
-  this.encryptedSize = 0;
-  this.cipher.on('data', function(data) {
-    //data = data.toString();
-    console.log("I got this data "+data.length);
-    util.pprint(data);
-    self.encryptedSize += data.length;
-    console.log('Encrypted size '+self.encryptedSize);
-    self.push(data);
-  });
+  this.prefix = Buffer(
+    String.fromCharCode(enums.write(enums.literal, 'utf8')) + 
+    String.fromCharCode(filename.length) +
+    filename +
+    util.writeDate(new Date()),
+    'binary'
+  )
+  var prefix_header = new Buffer(packet.packet.writeHeader(enums.packet.literal, 
+                                 this.prefix.length + this.fileLength), 'binary');
+  this.prefix = Buffer.concat([
+                  prefix_header,
+                  this.prefix
+  ]);
 
-  // this.on('end', function(){
-  //   self.cipher.end(); 
-  // });
+  this.cipher.on('data', function(data) {
+    self.push(util.bin2str(data));
+  });
 }
 util.inherits(MessageStream, packet_stream.HeaderPacketStream);
 
@@ -71,39 +66,25 @@ MessageStream.prototype.getHeader = function() {
       throw new Error('Could not find valid key packet for encryption in key ' + key.primaryKey.getKeyId().toHex());
     }
   });
-  var packet_len = unescape(encodeURIComponent(this.prefix)).length + this.fileLength + this.cipher.blockSize + 2,
+  var packet_len = this.prefix.length + this.fileLength + this.cipher.blockSize + 2,
     first_packet_header = packet.packet.writeHeader(9, packet_len),
     header = packetList.write();
 
-  console.log("First packet length " + packet_len);
-  console.log(this.prefix.length);
-  console.log(this.fileLength);
-  console.log(this.cipher.blockSize);
-  var d = header + first_packet_header;
-  console.log("Data length "+new Buffer(d).length);
-  util.pprint(header);
-  util.pprint(first_packet_header);
-  return new Buffer(d);
+  return header + first_packet_header;
 }
 
 MessageStream.prototype._transform = function(chunk, encoding, cb) {
   packet_stream.HeaderPacketStream.prototype._transform.call(this, chunk, encoding);
   var self = this;
+  chunk = new Buffer(chunk, 'binary');
   if (this.prefix) {
-    console.log(chunk.length);
-    chunk = this.prefix + chunk;
-    console.log("Writing prefix..");
-    console.log(this.prefix.length);
-    console.log(chunk.length);
+    chunk = Buffer.concat([this.prefix, chunk]);
     this.prefix = null;
   }
   this.cipher.once('encrypted', function(d) {
     cb();
-    console.log("Encrypted");
-    console.log(d);
   });
-  console.log("Writing to cipher "+chunk);
-  this.cipher.write(new Buffer(chunk));
+  this.cipher.write(chunk);
 }
 
 MessageStream.prototype._flush = function(cb) {

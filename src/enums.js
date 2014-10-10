@@ -312,6 +312,7 @@ module.exports = {
     for (var i in type)
       if (type[i] == e) return i;
 
+    console.log(e);
     throw new Error('Invalid enum value.');
   }
 };

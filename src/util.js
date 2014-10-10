@@ -309,10 +309,13 @@ module.exports = {
 
   inherits: require('util').inherits,
 
-  pprint: function (data){
+  pprint: function (data, msg){
     if (!data) {
       console.log("ERRR");
       return;
+    }
+    if (msg) {
+      console.log("DEBUG: "+msg);
     }
     var zero = function (n, max){
       n = n.toString (16).toUpperCase ();
@@ -321,7 +324,7 @@ module.exports = {
       }
       return n;
     };
-    var buffer = new Buffer(data);
+    var buffer = new Buffer(data, 'binary');
     var rows = Math.ceil (buffer.length/16);
     var last = buffer.length%16 || 16;
     var offsetLength = buffer.length.toString (16).length;

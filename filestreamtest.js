@@ -69,7 +69,7 @@ var priv_key =
 var plaintext = 'short message\nnext line\n한국어/조선말';
 // var plaintext = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 //var pt_encoded = unescape(encodeURIComponent(plaintext));
-var pt_encoded = 'antani';
+var pt_encoded = '1234567890abcdefghi';
 
 // var fileStreamMock = new openpgp.stream.Stream();
 // fileStreamMock.length = pt_encoded.length;
@@ -102,79 +102,25 @@ privKey.decrypt('hello world');
 var encrypted = openpgp.encryptMessage([pubKey], pt_encoded);
 
 message = openpgp.message.readArmored(encrypted);
-var encryptedpayload = new Buffer([]);
-var sm = new openpgp.stream.MessageStream(pt_encoded.length, [pubKey]);
+var encryptedpayload = new Buffer([], 'binary');
+var sm = new openpgp.stream.MessageStream([pubKey], pt_encoded.length, 'msg.txt');
 sm.on('data', function(data) {
   encryptedpayload = Buffer.concat([encryptedpayload, data]);
 });
 sm.on('end', function() {
   var packetList = new openpgp.packet.List(),
-    ecm;
-  console.log("LENGTHS");
-  console.log(new Buffer(message.packets.write()).length);
-
-  console.log("BEFORE");
-  openpgp.util.pprint(encryptedpayload);
-
+    packetListReal = new openpgp.packet.List(),
+    ecm, real_ecm, real_ep = message.packets.write();
   //encryptedpayload = openpgp.util.bin2str(encryptedpayload);
-
-  openpgp.util.pprint(encryptedpayload);
-  openpgp.util.pprint(message.packets.write());
 
   packetList.read(encryptedpayload.toString());
   ecm = new openpgp.message.Message(packetList);
-  //console.log(packetList);
-  //ecm.decrypt(privKey);
-  console.log(ecm);
-  console.log(message);
-  console.log("00000");
-  console.log(ecm.packets[1].encrypted.length)
-  console.log(message.packets[1].encrypted.length)
-  console.log("00000");
+
+  packetListReal.read(real_ep);
+  ecm = new openpgp.message.Message(packetList);
+  real_ecm = new openpgp.message.Message(packetListReal);
+  console.log(openpgp.decryptMessage(privKey, real_ecm));
   console.log(openpgp.decryptMessage(privKey, ecm));
-  console.log(openpgp.decryptMessage(privKey, ecm).length);
 });
-//sm.write(pt_encoded.slice(0, 10));
-//sm.write(pt_encoded.slice(10, 15));
 sm.write(pt_encoded);
 sm.end();
-
-// sm.read(140, function(data){
-//   if (data) {
-//     encryptedpayload += data;
-//   }
-//   sm.read(7, function(data) {
-//     if (data) {
-//       encryptedpayload += data;
-//     }
-//     sm.read(function(data) {
-//       if (data) {
-//         encryptedpayload += data;
-//       }
-//       var packetList = new openpgp.packet.List(),
-//         ecm;
-//       console.log("LENGTHS");
-//       console.log(message.packets.write().length);
-//       console.log(encryptedpayload.length);
-//       openpgp.util.print_debug_hexstr_dump("encrypted payload-mod: ", encryptedpayload);
-//       openpgp.util.print_debug_hexstr_dump("encrypted payload-orig: ", message.packets.write());
-//       packetList.read(encryptedpayload);
-//       ecm = new openpgp.message.Message(packetList);
-//       //console.log(packetList);
-//       //ecm.decrypt(privKey);
-//       console.log(ecm);
-//       console.log(message);
-//       console.log("00000");
-//       console.log(ecm.packets[1].encrypted.length)
-//       console.log(message.packets[1].encrypted.length)
-//       console.log("00000");
-//       console.log(openpgp.decryptMessage(privKey, ecm));
-//       console.log(openpgp.decryptMessage(privKey, ecm).length);
-//       //var ecm = openpgp.packet.fromBinary(encryptedpayload);
-//       //console.log(ecm);
-//       //var dec = openpgp.decryptMessage(privKey, ecm);
-//       //console.log(dec);
-//     });
-//   })
-// });
-//expect(new openpgp.message.Message(encryptedpackets)).to.equal(message);

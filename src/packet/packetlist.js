@@ -12,7 +12,8 @@ module.exports = Packetlist;
 
 var packetParser = require('./packet.js'),
   packets = require('./all_packets.js'),
-  enums = require('../enums.js');
+  enums = require('../enums.js'),
+  util = require('../util.js');
 
 /**
  * @constructor
@@ -38,7 +39,7 @@ Packetlist.prototype.read = function (bytes) {
     var packet = packets.newPacketFromTag(tag);
 
     this.push(packet);
-
+    
     packet.read(parsed.packet);
   }
 };
@@ -53,6 +54,7 @@ Packetlist.prototype.write = function () {
 
   for (var i = 0; i < this.length; i++) {
     var packetbytes = this[i].write();
+    console.log("T " + this[i].tag + " L " + packetbytes.length);
     bytes += packetParser.writeHeader(this[i].tag, packetbytes.length);
     bytes += packetbytes;
   }
