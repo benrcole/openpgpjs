@@ -181,32 +181,15 @@ module.exports = {
   },
   
   customRSA: function(bits, prng) {
-    function SecureRandom() {
-      function nextBytes(byteArray) {
-        for (var n = 0; n < byteArray.length; n++) {
-          byteArray[n] = random.getSecureRandomOctet();
-        }
-      }
-      this.nextBytes = nextBytes;
-    }
-    function keyObject() {
-      this.n = null;
-      this.e = 0;
-      this.ee = null;
-      this.d = null;
-      this.p = null;
-      this.q = null;
-      this.dmp1 = null;
-      this.dmq1 = null;
-      this.u = null;
-    }
     var B = bits;
     var E = "10001";
     var rsa = new publicKey.rsa();
-    var key = new keyObject();
-    var rng = new SecureRandom();
+    var key = new publicKey.rsa.keyObject();
+    var rng;
     if (prng) {
       rng = prng;
+    } else {
+      rng = new publicKey.rsa.SecureRandom();
     }
     var qs = B >> 1;
     key.e = parseInt(E, 16);
