@@ -3,6 +3,6 @@ build/
 node_modules/
 npm*
 test/lib/
-dist/
+#dist/
 openpgp.store/
 doc/
