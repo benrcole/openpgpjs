@@ -189,6 +189,17 @@ module.exports = {
       }
       this.nextBytes = nextBytes;
     }
+    function keyObject() {
+      this.n = null;
+      this.e = 0;
+      this.ee = null;
+      this.d = null;
+      this.p = null;
+      this.q = null;
+      this.dmp1 = null;
+      this.dmq1 = null;
+      this.u = null;
+    }
     var B = bits;
     var E = "10001";
     var rsa = new publicKey.rsa();
