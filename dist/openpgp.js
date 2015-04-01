@@ -3854,12 +3854,12 @@ module.exports = {
     var B = bits;
     var E = "10001";
     var rsa = new publicKey.rsa();
-    var key = new publicKey.rsa.keyObject();
+    var key = new rsa.keyObject();
     var rng;
     if (prng) {
       rng = prng;
     } else {
-      rng = new publicKey.rsa.SecureRandom();
+      rng = new rsa.SecureRandom();
     }
     var qs = B >> 1;
     key.e = parseInt(E, 16);
