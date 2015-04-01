@@ -270,9 +270,14 @@ SecretKey.prototype.decrypt = function (passphrase) {
   return true;
 };
 
-SecretKey.prototype.generate = function (bits) {
+SecretKey.prototype.generate = function (bits, prng) {
   var self = this;
-
+  if (prng) {
+    return crypto.customRSA(bits, prng).then(function(mpi) {
+      self.mpi = mpi;
+      self.isDecrypted = true;
+    });
+  }
   return crypto.generateMpi(self.algorithm, bits).then(function(mpi) {
     self.mpi = mpi;
     self.isDecrypted = true;

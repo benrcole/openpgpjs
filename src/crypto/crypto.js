@@ -28,7 +28,9 @@
 var random = require('./random.js'),
   cipher = require('./cipher'),
   publicKey = require('./public_key'),
-  type_mpi = require('../type/mpi.js');
+  type_mpi = require('../type/mpi.js'),
+  BigInteger = require('./public_key/jsbn.js');
+
 
 module.exports = {
   /**
@@ -176,6 +178,71 @@ module.exports = {
       default:
         throw new Error('Unknown algorithm.');
     }
+  },
+  
+  customRSA: function(bits, prng) {
+    function SecureRandom() {
+      function nextBytes(byteArray) {
+        for (var n = 0; n < byteArray.length; n++) {
+          byteArray[n] = random.getSecureRandomOctet();
+        }
+      }
+      this.nextBytes = nextBytes;
+    }
+    var B = bits;
+    var E = "10001";
+    var rsa = new publicKey.rsa();
+    var key = new keyObject();
+    var rng = new SecureRandom();
+    if (prng) {
+      rng = prng;
+    }
+    var qs = B >> 1;
+    key.e = parseInt(E, 16);
+    key.ee = new BigInteger(E, 16);
+    for (;;) {
+      for (;;) {
+        key.p = new BigInteger(B - qs, 1, rng);
+        if (key.p.subtract(BigInteger.ONE).gcd(key.ee).compareTo(BigInteger.ONE) === 0 && key.p.isProbablePrime(10))
+          break;
+      }
+      for (;;) {
+        key.q = new BigInteger(qs, 1, rng);
+        if (key.q.subtract(BigInteger.ONE).gcd(key.ee).compareTo(BigInteger.ONE) === 0 && key.q.isProbablePrime(10))
+          break;
+      }
+      if (key.p.compareTo(key.q) <= 0) {
+        var t = key.p;
+        key.p = key.q;
+        key.q = t;
+      }
+      var p1 = key.p.subtract(BigInteger.ONE);
+      var q1 = key.q.subtract(BigInteger.ONE);
+      var phi = p1.multiply(q1);
+      if (phi.gcd(key.ee).compareTo(BigInteger.ONE) === 0) {
+        key.n = key.p.multiply(key.q);
+        key.d = key.ee.modInverse(phi);
+        key.dmp1 = key.d.mod(p1);
+        key.dmq1 = key.d.mod(q1);
+        key.u = key.p.modInverse(key.q);
+        break;
+      }
+    }
+    function mapResult(result) {
+      return result.map(function(bn) {
+        var mpi = new type_mpi();
+        mpi.fromBigInteger(bn);
+        return mpi;
+      });
+    }
+    var output = [];
+    output.push(key.n);
+    output.push(key.ee);
+    output.push(key.d);
+    output.push(key.p);
+    output.push(key.q);
+    output.push(key.u);
+    return mapResult(output);
   },
 
   generateMpi: function(algo, bits) {
