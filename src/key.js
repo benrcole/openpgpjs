@@ -942,7 +942,10 @@ function generate(options) {
   function generateSecretSubkey() {
     secretSubkeyPacket = new packet.SecretSubkey();
     secretSubkeyPacket.algorithm = enums.read(enums.publicKey, options.keyType);
-    return secretSubkeyPacket.generate(options.numBits);
+    if (options.created) {
+      secretSubkeyPacket.created = options.created;
+    }
+    return secretSubkeyPacket.generate(options.numBits, options.prng);
   }
 
   function wrapKeyObject() {
