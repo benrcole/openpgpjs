@@ -933,6 +933,9 @@ function generate(options) {
   function generateSecretKey() {
     secretKeyPacket = new packet.SecretKey();
     secretKeyPacket.algorithm = enums.read(enums.publicKey, options.keyType);
+    if (options.created) {
+      secretKeyPacket.created = options.created;
+    }
     return secretKeyPacket.generate(options.numBits, options.prng);
   }
 
